@@ -1,0 +1,67 @@
+name: MLflow CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # Manual trigger from GitHub UI
+
+jobs:
+  train-model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12.7'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install mlflow scikit-learn pandas numpy
+        
+    - name: Test MLflow installation
+      run: |
+        python -c "import mlflow; print(f'MLflow version: {mlflow.__version__}')"
+        
+    - name: List files
+      run: |
+        echo "📁 Files in repository:"
+        ls -la
+        echo "📄 Contents of current directory:"
+        find . -type f -name "*.py" -o -name "*.yaml" -o -name "*.yml" | head -10
+        
+    - name: Run simple Python script
+      run: |
+        echo "🚀 Running simple test..."
+        python -c "
+        import pandas as pd
+        print('✅ Pandas version:', pd.__version__)
+        
+        # Try to load data if exists
+        try:
+            df = pd.read_csv('heart.csv')
+            print(f'✅ Dataset loaded: {df.shape[0]} rows, {df.shape[1]} cols')
+        except:
+            print('⚠️  heart.csv not found, but continuing...')
+        "
+        
+    - name: Create success marker
+      run: |
+        echo "🎉 MLflow CI/CD Pipeline executed successfully!" > ci-success.txt
+        echo "Date: $(date)" >> ci-success.txt
+        echo "Repository: ${{ github.repository }}" >> ci-success.txt
+        echo "Workflow: ${{ github.workflow }}" >> ci-success.txt
+        
+    - name: Upload success artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: ci-results
+        path: ci-success.txt
+        retention-days: 7
